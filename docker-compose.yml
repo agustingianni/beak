@@ -1,0 +1,35 @@
+services:
+  beak-bot:
+    build:
+      context: beak-bot
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URI=postgresql://beak:beak@database:5432/beak
+
+  database:
+    image: postgres
+    restart: "unless-stopped"
+    ports:
+      - 5555:5432
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=beak
+      - POSTGRES_USER=beak
+      - POSTGRES_PASSWORD=beak
+
+  vector:
+    image: chromadb/chroma
+    restart: "unless-stopped"
+    ports:
+      - 8000:8000
+    volumes:
+      - vector-data:/chroma/chroma/
+    environment:
+      - ANONYMIZED_TELEMETRY=False
+      - ALLOW_RESET=True
+      - IS_PERSISTENT=True
+
+volumes:
+  database-data:
+  vector-data:

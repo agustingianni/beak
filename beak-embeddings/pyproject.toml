@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "beak-embeddings"
+version = "0.1.0"
+description = ""
+authors = ["Agustin Gianni <agustingianni@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sentence-transformers = "^2.7.0"
+click = "^8.1.7"
+humanize = "^4.9.0"
+
+[tool.poetry.scripts]
+embeddings = "beak_embeddings.cli:embeddings"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

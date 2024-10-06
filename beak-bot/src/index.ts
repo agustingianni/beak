@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+import PrettyError from 'pretty-error';
+import { BeakBot } from './bots/beak.js';
+import { BotSettings } from './bots/index.js';
+import { IRCClient } from './clients/irc.js';
+import { Database } from './database/index.js';
+import { error, info } from './logging/index.js';
+import { ShitpostPlugin } from './plugins/shitpost.js';
+import { Settings } from './settings.js';
+
+async function main() {
+  info(`Beak Settings:`);
+  info(Settings);
+
+  try {
+    // Initialize the database
+    info('Connecting to the database...');
+    await Database.initialize();
+    info('Database connected.');
+  } catch (err) {
+    error('Failed to connect to the database:', err);
+    process.exit(1);
+  }
+
+  const client = new IRCClient(Settings);
+
+  const settings: BotSettings = {
+    nick: Settings.user.nick,
+    channel: Settings.user.channel
+  };
+
+  const bot = new BeakBot(settings, client);
+  // bot.addPlugin(new EmbedPlugin(bot));
+  // bot.addPlugin(new SummarizePlugin(bot));
+  // bot.addPlugin(new OraclePlugin(bot));
+  bot.addPlugin(new ShitpostPlugin(bot));
+
+  await bot.start();
+
+  // Signal handling for graceful shutdown
+  const shutdown = async (reason: string, code = 0) => {
+    try {
+      info(`Shutdown initiated due to: ${reason}. Proceeding with graceful termination...`);
+
+      if (bot) {
+        await bot.stop();
+        info('Bot stopped.');
+      }
+
+      if (Database) {
+        await Database.destroy();
+        info('Database disconnected.');
+      }
+
+      process.exit(code);
+    } catch (shutdownError) {
+      error('Error during shutdown process:', shutdownError);
+      process.exit(1);
+    }
+  };
+
+  // Listen for shutdown signals
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  process.on('unhandledRejection', async (reason: Error) => {
+    error('Unhandled rejection');
+    error(`${new PrettyError().render(reason)}`);
+    await shutdown('unhandledRejection', 1);
+  });
+
+  process.on('uncaughtException', async (reason: Error) => {
+    error('Unhandled exception');
+    error(`${new PrettyError().render(reason)}`);
+    await shutdown('uncaughtException', 1);
+  });
+}
+
+try {
+  await main();
+} catch (e) {
+  error(e);
+  process.exit(1);
+}

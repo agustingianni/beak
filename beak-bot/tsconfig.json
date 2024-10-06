@@ -1,0 +1,15 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "extends": ["@tsconfig/strictest/tsconfig", "@tsconfig/node20/tsconfig"],
+    "include": ["src/**/*"],
+    "compilerOptions": {
+      "rootDir": "src",
+      "outDir": "bin",
+      "inlineSourceMap": true,
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "allowUnreachableCode": true,
+      "noUnusedLocals": false
+    }
+  }
+  
