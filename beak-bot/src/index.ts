@@ -5,6 +5,7 @@ import { BotSettings } from './bots/index.js';
 import { IRCClient } from './clients/irc.js';
 import { Database } from './database/index.js';
 import { error, info } from './logging/index.js';
+import { OraclePlugin } from './plugins/oracle.js';
 import { ShitpostPlugin } from './plugins/shitpost.js';
 import { Settings } from './settings.js';
 
@@ -30,9 +31,7 @@ async function main() {
   };
 
   const bot = new BeakBot(settings, client);
-  // bot.addPlugin(new EmbedPlugin(bot));
-  // bot.addPlugin(new SummarizePlugin(bot));
-  // bot.addPlugin(new OraclePlugin(bot));
+  bot.addPlugin(new OraclePlugin(bot));
   bot.addPlugin(new ShitpostPlugin(bot));
 
   await bot.start();

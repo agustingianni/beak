@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import { BeakMessage } from '../bots/beak.js';
 import { BaseBot } from '../bots/index.js';
 import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
@@ -11,7 +10,9 @@ import { BasePlugin, PluginContext } from './index.js';
 
 export class ShitpostPlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
+  private readonly INACTIVITY_THRESHOLD_HOURS = 4;
   private agent: LLMAgent;
+  private timestamp: number = Date.now();
 
   constructor(bot: BaseBot) {
     super(bot);
@@ -21,26 +22,38 @@ export class ShitpostPlugin extends BasePlugin {
       new Personality([
         `Your IRC nickname is ${this.bot.nick}.`,
         `You hang around an IRC channel named ${this.bot.channel}.`,
+        'You are designed to shitpost on irc regularly.',
         'User goose is your creator and best friend.',
         'User mxms is mad as fuck.',
         'You hate the radare2 the reverse engineering framework.',
-        'Engage in the conversation with a laid-back and philosophical vibe, and feel free to add a touch of whimsy or offbeat humor as appropriate.'
+        'Kernel mode is hard.',
+        'Fuck nerdcore forever.'
       ])
     );
+
+    this.startInactivityTimer();
   }
 
-  async process(context: PluginContext, next: () => Promise<void>) {
-    const { message } = context;
+  private startInactivityTimer() {
+    const check = async () => {
+      const delta = (Date.now() - this.timestamp) / (1000 * 60 * 60);
+      if (delta >= this.INACTIVITY_THRESHOLD_HOURS) {
+        debug(chalk.yellow(`No activity detected for ${delta.toFixed(2)} hours.`));
+        await this.interact();
+        this.updateLastMessageTime();
+      }
+    };
 
-    if (this.shouldEngage(message)) {
-      await this.interact();
-    }
+    setInterval(check, 60 * 1000);
+  }
 
+  private updateLastMessageTime() {
+    this.timestamp = Date.now();
+  }
+
+  async process(_context: PluginContext, next: () => Promise<void>) {
+    this.updateLastMessageTime();
     return next();
-  }
-
-  private shouldEngage(message: BeakMessage): boolean {
-    return message.sender !== this.bot.nick && message.content.includes(this.bot.nick);
   }
 
   async interact() {
@@ -60,20 +73,13 @@ export class ShitpostPlugin extends BasePlugin {
         debug(chalk.redBright(`  * ${message.sender.name}: ${message.data}`));
       }
 
-      const mention = context[context.length - 1]!;
       const conversation = context.slice(0, context.length - 1);
       const prompt = [
         '### IRC Logs',
         ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
         '',
-        '### Mention',
-        `User ${mention.sender.name} mentioned you in the following message: "${mention.data}"`,
-        '',
         '### Instructions',
-        `Respond directly to the mention by ${mention.sender.name} with a short, coherent message.`,
-        'Use information from the conversation logs **if** it is relevant to the mention.',
-        'Focus primarily on addressing the mention, but you may reference the previous conversation if it helps make your response more relevant or coherent.',
-        'Keep your response concise and aligned with the tone of the ongoing conversation.'
+        `Given that there hasn't been any new messages in the last period, craft a shitpost message.`
       ];
 
       const start = Date.now();

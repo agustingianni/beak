@@ -1,104 +1,97 @@
-import { MoreThanOrEqual } from 'typeorm';
-import { BeakBot } from '../bots/beak.js';
+import chalk from 'chalk';
+import { BeakMessage } from '../bots/beak.js';
+import { BaseBot } from '../bots/index.js';
 import { Database, Message } from '../database/index.js';
+import { debug, error } from '../logging/index.js';
 import { ModelFactory } from '../models/factory.js';
 import { LLMAgent, Personality } from '../models/index.js';
-import { VectorDataSource } from '../models/query.js';
 import { Settings } from '../settings.js';
 import { OutputMessage } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class OraclePlugin extends BasePlugin {
+  private readonly CONTEXT_SIZE = 16;
   private agent: LLMAgent;
-  private store: VectorDataSource;
-  private readonly CONTEXT_SIZE = 12;
-  private readonly QUERY_K = 4;
 
-  constructor(bot: BeakBot) {
+  constructor(bot: BaseBot) {
     super(bot);
 
     this.agent = new LLMAgent(
       ModelFactory.create(Settings.models[0]!),
       new Personality([
-        `Your irc nick name is ${this.bot.nick}.`,
-        'Your responses should be quick, clever, and occasionally blunt.',
-        'Engage in the conversation naturally, and feel free to add a touch of humor or toughness as appropriate.'
+        `Your IRC nickname is ${this.bot.nick}.`,
+        `You hang around an IRC channel named ${this.bot.channel}.`,
+        'User goose is your creator and best friend.',
+        'User mxms is mad as fuck.',
+        'You hate the radare2 the reverse engineering framework.',
+        'Kernel mode is hard.',
+        'Fuck nerdcore forever.'
       ])
     );
-
-    this.store = new VectorDataSource();
   }
 
-  async answer(sender: string, question: string, facts: string[]): Promise<string> {
-    const response = await this.agent.query([
-      `You are in a conversation where ${sender} has asked a question.`,
-      `Here are some additional facts that might help answer the question:`,
-      ...facts,
-      `If you don't know the answer, respond with "I don't know."`,
-      `If the question is relevant and you know the answer, provide a concise and accurate response.`,
-      `Question from ${sender}:\n${question}`
-    ]);
+  async process(context: PluginContext, next: () => Promise<void>) {
+    const { message } = context;
 
-    return OutputMessage.cleanup(response, this.bot.nick);
-  }
-
-  async process({ message }: PluginContext, next: () => Promise<void>) {
-    const { sender, channel, content: question } = message;
-
-    // Make sure the sender is not the bot.
-    if (sender !== this.bot.nick && question.includes(this.bot.nick)) {
-      // Retrieve any possible context from the database.
-      const facts: string[] = [];
-      const repository = await this.store.getRepository(channel);
-      const results = await repository.query({ question }, this.QUERY_K);
-      for (const { id } of results) {
-        const messages = await Database.getRepository(Message).find({
-          where: { id: MoreThanOrEqual(parseInt(id)), channel: { name: channel } },
-          order: { id: 'ASC' },
-          take: this.CONTEXT_SIZE,
-          relations: ['sender']
-        });
-
-        facts.push(...messages.map((message) => `${message.sender.name}: ${message.data}`));
-      }
-
-      // Answer the question.
-      const answer = await this.answer(sender, question, facts);
-      await this.bot.send('public', channel, answer);
+    if (this.shouldEngage(message)) {
+      await this.interact();
     }
 
     return next();
   }
-}
 
-async function main() {
-  const channelName = process.argv[2];
-  if (!channelName) {
-    console.error('Please provide a channel name as an argument');
-    process.exit(1);
+  private shouldEngage(message: BeakMessage): boolean {
+    return message.sender !== this.bot.nick && message.content.includes(this.bot.nick);
   }
 
-  const query = process.argv.slice(3).join(' ');
-  if (!query) {
-    console.error('Please provide a query as an argument');
-    process.exit(1);
-  }
+  async interact() {
+    try {
+      const { channel } = this.bot;
+      const context = await Database.getRepository(Message).find({
+        where: { channel: { name: channel } },
+        order: { id: 'DESC' },
+        take: this.CONTEXT_SIZE,
+        relations: ['sender', 'channel']
+      });
 
-  await Database.initialize();
+      context.reverse();
 
-  const bot = {} as BeakBot;
-  const plugin = new OraclePlugin(bot);
-  const result = await plugin.process(
-    {
-      message: {
-        id: 1,
-        channel: '#0x4f',
-        sender: 'goose',
-        content: query
+      debug(chalk.redBright(`Preparing interaction with context:`));
+      for (const message of context) {
+        debug(chalk.redBright(`  * ${message.sender.name}: ${message.data}`));
       }
-    },
-    async () => {}
-  );
 
-  console.log(result);
+      const mention = context[context.length - 1]!;
+      const conversation = context.slice(0, context.length - 1);
+      const prompt = [
+        '### IRC Logs',
+        ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
+        '',
+        '### Mention',
+        `User ${mention.sender.name} mentioned you in the following message: "${mention.data}"`,
+        '',
+        '### Instructions',
+        `Respond directly to the mention by ${mention.sender.name} with a short, coherent message.`,
+        'Use information from the conversation logs **if** it is relevant to the mention.',
+        'Focus primarily on addressing the mention, but you may reference the previous conversation if it helps make your response more relevant or coherent.',
+        'Keep your response concise and aligned with the tone of the ongoing conversation.',
+        'Try not answer the mention with a question.'
+      ];
+
+      const start = Date.now();
+      const response = await this.agent.query(prompt);
+      const end = Date.now();
+      debug(`Response generated in ${end - start}ms`);
+
+      if (!response.includes('\n')) {
+        debug(chalk.greenBright(response));
+      } else {
+        debug(chalk.redBright(response));
+      }
+
+      await this.bot.send('public', channel, OutputMessage.cleanup(response, this.bot.nick));
+    } catch (err) {
+      error('Error during interaction:', err);
+    }
+  }
 }
