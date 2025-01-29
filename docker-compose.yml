@@ -3,11 +3,14 @@ services:
     build:
       context: beak-bot
       dockerfile: Dockerfile
+    restart: "unless-stopped"
     environment:
       - DATABASE_URI=postgresql://beak:beak@database:5432/beak
+    depends_on:
+      - database
 
   database:
-    image: postgres
+    image: postgres:16
     restart: "unless-stopped"
     ports:
       - 5555:5432
