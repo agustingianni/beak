@@ -12,8 +12,6 @@ services:
   database:
     image: postgres:16
     restart: "unless-stopped"
-    ports:
-      - 5555:5432
     volumes:
       - database-data:/var/lib/postgresql/data
     environment:
@@ -24,8 +22,6 @@ services:
   vector:
     image: chromadb/chroma
     restart: "unless-stopped"
-    ports:
-      - 8000:8000
     volumes:
       - vector-data:/chroma/chroma/
     environment:
