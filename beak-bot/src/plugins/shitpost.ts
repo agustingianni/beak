@@ -2,35 +2,16 @@ import chalk from 'chalk';
 import { BaseBot } from '../bots/index.js';
 import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
-import { ModelFactory } from '../models/factory.js';
-import { LLMAgent, Personality } from '../models/index.js';
-import { Settings } from '../settings.js';
 import { OutputMessage } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class ShitpostPlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
   private readonly INACTIVITY_THRESHOLD_HOURS = 4;
-  private agent: LLMAgent;
   private timestamp: number = Date.now();
 
   constructor(bot: BaseBot) {
     super(bot);
-
-    this.agent = new LLMAgent(
-      ModelFactory.create(Settings.models[0]!),
-      new Personality([
-        `Your IRC nickname is ${this.bot.nick}.`,
-        `You hang around an IRC channel named ${this.bot.channel}.`,
-        'You are designed to shitpost on irc regularly.',
-        'User goose is your creator and best friend.',
-        'User mxms is mad as fuck.',
-        'You hate the radare2 the reverse engineering framework.',
-        'Kernel mode is hard.',
-        'Fuck nerdcore forever.'
-      ])
-    );
-
     this.startInactivityTimer();
   }
 
@@ -83,7 +64,7 @@ export class ShitpostPlugin extends BasePlugin {
       ];
 
       const start = Date.now();
-      const response = await this.agent.query(prompt);
+      const response = await this.bot.agent.query(prompt);
       const end = Date.now();
       debug(`Response generated in ${end - start}ms`);
 

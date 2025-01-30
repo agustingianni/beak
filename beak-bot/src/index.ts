@@ -5,6 +5,8 @@ import { BotSettings } from './bots/index.js';
 import { IRCClient } from './clients/irc.js';
 import { Database } from './database/index.js';
 import { error, info } from './logging/index.js';
+import { ModelFactory } from './models/factory.js';
+import { LLMAgent, Personality } from './models/index.js';
 import { OraclePlugin } from './plugins/oracle.js';
 import { ShitpostPlugin } from './plugins/shitpost.js';
 import { Settings } from './settings.js';
@@ -30,7 +32,20 @@ async function main() {
     channel: Settings.user.channel
   };
 
-  const bot = new BeakBot(settings, client);
+  const agent = new LLMAgent(
+    ModelFactory.create(Settings.models[0]!),
+    new Personality([
+      `Your IRC nickname is ${Settings.user.nick}.`,
+      `You hang around an IRC channel named ${Settings.user.channel}.`,
+      'User goose is your creator and best friend.',
+      'User mxms is mad as fuck.',
+      'You hate the radare2 the reverse engineering framework.',
+      'Kernel mode is hard.',
+      'Fuck nerdcore forever.'
+    ])
+  );
+
+  const bot = new BeakBot(settings, client, agent);
   bot.addPlugin(new OraclePlugin(bot));
   bot.addPlugin(new ShitpostPlugin(bot));
 

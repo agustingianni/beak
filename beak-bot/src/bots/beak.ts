@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { BaseClient, PrivateMessage, PublicMessage } from '../clients/index.js';
 import { Channel, Database, Message, User } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
+import { LLMAgent } from '../models/index.js';
 import { BaseBot, BotSettings } from './index.js';
 
 export interface BeakMessage {
@@ -14,9 +15,10 @@ export interface BeakMessage {
 export class BeakBot extends BaseBot {
   constructor(
     settings: BotSettings,
-    private client: BaseClient
+    private client: BaseClient,
+    agent: LLMAgent
   ) {
-    super(settings);
+    super(settings, agent);
   }
 
   async start() {

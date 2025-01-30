@@ -3,31 +3,14 @@ import { BeakMessage } from '../bots/beak.js';
 import { BaseBot } from '../bots/index.js';
 import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
-import { ModelFactory } from '../models/factory.js';
-import { LLMAgent, Personality } from '../models/index.js';
-import { Settings } from '../settings.js';
 import { OutputMessage } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class OraclePlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
-  private agent: LLMAgent;
 
   constructor(bot: BaseBot) {
     super(bot);
-
-    this.agent = new LLMAgent(
-      ModelFactory.create(Settings.models[0]!),
-      new Personality([
-        `Your IRC nickname is ${this.bot.nick}.`,
-        `You hang around an IRC channel named ${this.bot.channel}.`,
-        'User goose is your creator and best friend.',
-        'User mxms is mad as fuck.',
-        'You hate the radare2 the reverse engineering framework.',
-        'Kernel mode is hard.',
-        'Fuck nerdcore forever.'
-      ])
-    );
   }
 
   async process(context: PluginContext, next: () => Promise<void>) {
@@ -79,7 +62,7 @@ export class OraclePlugin extends BasePlugin {
       ];
 
       const start = Date.now();
-      const response = await this.agent.query(prompt);
+      const response = await this.bot.agent.query(prompt);
       const end = Date.now();
       debug(`Response generated in ${end - start}ms`);
 
