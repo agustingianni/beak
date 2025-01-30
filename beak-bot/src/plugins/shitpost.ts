@@ -39,9 +39,8 @@ export class ShitpostPlugin extends BasePlugin {
 
   async interact() {
     try {
-      const { channel } = this.bot;
       const context = await Database.getRepository(Message).find({
-        where: { channel: { name: channel } },
+        where: { channel: { name: this.bot.channel } },
         order: { id: 'DESC' },
         take: this.CONTEXT_SIZE,
         relations: ['sender', 'channel']
@@ -74,7 +73,11 @@ export class ShitpostPlugin extends BasePlugin {
         debug(chalk.redBright(response));
       }
 
-      await this.bot.send('public', channel, OutputMessage.cleanup(response, this.bot.nick));
+      await this.bot.send(
+        'public',
+        this.bot.channel,
+        OutputMessage.cleanup(response, this.bot.nick)
+      );
     } catch (err) {
       error('Error during interaction:', err);
     }
