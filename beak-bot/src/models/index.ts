@@ -5,7 +5,7 @@ export interface LLMModel {
 export class Personality {
   constructor(public template: string | string[]) {}
 
-  formatPrompt(prompt: string): string {
+  format(prompt: string): string {
     if (Array.isArray(this.template)) {
       const template = this.template.join('\n');
       return `${template}\n${prompt}`;
@@ -17,8 +17,8 @@ export class Personality {
 
 export class LLMAgent {
   constructor(
-    private model: LLMModel,
-    private personality: Personality
+    private readonly model: LLMModel,
+    public personality?: Personality
   ) {}
 
   setPersonality(personality: Personality): void {
@@ -26,7 +26,7 @@ export class LLMAgent {
   }
 
   async query(input: string | string[]): Promise<string> {
-    const prompt = this.personality.formatPrompt(Array.isArray(input) ? input.join('\n') : input);
-    return await this.model.invoke(prompt);
+    const prompt = Array.isArray(input) ? input.join('\n') : input;
+    return this.model.invoke(this.personality ? this.personality.format(prompt) : prompt);
   }
 }
