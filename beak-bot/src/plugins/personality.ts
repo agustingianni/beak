@@ -25,35 +25,24 @@ export class PersonalityPlugin extends BasePlugin {
 
     switch (subcommand) {
       case 'show':
-        if (this.bot.agent.personality) {
-          await this.bot.send(
-            'private',
-            message.sender,
-            'This is my current personality:\n' + this.bot.agent.personality.template
-          );
-        }
+        await this.bot.send(
+          'private',
+          message.sender,
+          'This is my current personality:\n' + this.bot.personality.template.join('\n')
+        );
         break;
 
       case 'add':
-        if (args && this.bot.agent.personality) {
+        if (args) {
           info(`Adding to personality: ${args}`);
-          this.bot.agent.setPersonality(
-            new Personality([...this.bot.agent.personality.template, args])
-          );
-        }
-        break;
-
-      case 'reset':
-        if (this.bot.agent.personality) {
-          info('Resetting personality to default');
-          this.bot.agent.setPersonality(this.bot.agent.personality);
+          this.bot.personality = new Personality([...this.bot.personality.template, args]);
         }
         break;
 
       case 'set':
         if (args) {
           info(`Setting new personality: ${args}`);
-          this.bot.agent.setPersonality(new Personality(args));
+          this.bot.personality = new Personality([args]);
         }
         break;
 
@@ -64,7 +53,6 @@ export class PersonalityPlugin extends BasePlugin {
           `Available personality commands:\n` +
             `- show: Show the current personality.\n` +
             `- add <trait>: Add a new personality trait.\n` +
-            `- reset: Reset to the default personality.\n` +
             `- set <personality>: Overwrite with a new personality.\n` +
             `- help: Show this list of commands.`
         );

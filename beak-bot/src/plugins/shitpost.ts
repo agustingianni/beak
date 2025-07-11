@@ -55,11 +55,17 @@ export class ShitpostPlugin extends BasePlugin {
 
       const conversation = context.slice(0, context.length - 1);
       const prompt = [
+        '### Your Personality',
+        ...this.bot.personality.template,
+        '',
         '### IRC Logs',
         ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
         '',
         '### Instructions',
-        `Given that there hasn't been any new messages in the last period, craft a shitpost message.`
+        `You are ${this.bot.nick}.`,
+        `The channel has been quiet for a while.`,
+        `Craft a short, witty, or interesting message to get the conversation going again.`,
+        `Your message should be in character with your personality and could be a random thought, a joke, or a comment related to the last conversation topics.`
       ];
 
       const start = Date.now();

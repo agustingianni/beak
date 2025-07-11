@@ -39,9 +39,9 @@ async function main() {
     'User goose is your creator and best friend.'
   ]);
 
-  const agent = new LLMAgent(ModelFactory.create(Settings.models[0]!), personality);
+  const agent = new LLMAgent(ModelFactory.create(Settings.models[0]!));
 
-  const bot = new BeakBot(settings, client, agent);
+  const bot = new BeakBot(client, settings, agent, personality);
   bot.addPlugin(new PersonalityPlugin(bot));
   bot.addPlugin(new OraclePlugin(bot));
   bot.addPlugin(new ShitpostPlugin(bot));

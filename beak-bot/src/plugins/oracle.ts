@@ -46,6 +46,9 @@ export class OraclePlugin extends BasePlugin {
       const mention = context[context.length - 1]!;
       const conversation = context.slice(0, context.length - 1);
       const prompt = [
+        '### Your Personality',
+        ...this.bot.personality.template,
+        '',
         '### IRC Logs',
         ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
         '',
@@ -53,11 +56,12 @@ export class OraclePlugin extends BasePlugin {
         `User ${mention.sender.name} mentioned you in the following message: "${mention.data}"`,
         '',
         '### Instructions',
+        `You are ${this.bot.nick}.`,
         `Respond directly to the mention by ${mention.sender.name} with a short, coherent message.`,
         'Use information from the conversation logs **if** it is relevant to the mention.',
         'Focus primarily on addressing the mention, but you may reference the previous conversation if it helps make your response more relevant or coherent.',
-        'Keep your response concise and aligned with the tone of the ongoing conversation.',
-        'Try not answer the mention with a question.'
+        'Keep your response concise and aligned with the tone of the ongoing conversation and your personality.',
+        'Try not to answer the mention with a question.'
       ];
 
       const start = Date.now();

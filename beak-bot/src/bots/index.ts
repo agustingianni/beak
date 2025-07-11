@@ -1,5 +1,5 @@
 import PQueue from 'p-queue';
-import { LLMAgent } from '../models/index.js';
+import { LLMAgent, Personality } from '../models/index.js';
 import { BasePlugin, PluginContext } from '../plugins/index.js';
 import { BeakMessage } from './beak.js';
 
@@ -22,7 +22,8 @@ export abstract class BaseBot {
 
   constructor(
     private settings: BotSettings,
-    public agent: LLMAgent
+    public agent: LLMAgent,
+    public personality: Personality
   ) {}
 
   public async addPlugin(plugin: BasePlugin) {
