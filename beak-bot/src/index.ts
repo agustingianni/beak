@@ -11,6 +11,7 @@ import { OraclePlugin } from './plugins/oracle.js';
 import { PersonalityPlugin } from './plugins/personality.js';
 import { ShitpostPlugin } from './plugins/shitpost.js';
 import { Settings } from './settings.js';
+import { ReadPlugin } from './plugins/read.js';
 
 async function main() {
   info(`Beak Settings:`);
@@ -45,6 +46,7 @@ async function main() {
   bot.addPlugin(new PersonalityPlugin(bot));
   bot.addPlugin(new OraclePlugin(bot));
   bot.addPlugin(new ShitpostPlugin(bot));
+  bot.addPlugin(new ReadPlugin(bot));
 
   await bot.start();
 
