@@ -4,11 +4,13 @@ import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
 import { OutputMessage } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
+import { Not } from 'typeorm';
 
 export class ShitpostPlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
   private readonly INACTIVITY_THRESHOLD_HOURS = 4;
-  private timestamp: number = Date.now();
+  private lastUserMessageTime: number = Date.now();
+  private hasPostedSinceLastUserMessage = false;
 
   constructor(bot: BaseBot) {
     super(bot);
@@ -17,30 +19,38 @@ export class ShitpostPlugin extends BasePlugin {
 
   private startInactivityTimer() {
     const check = async () => {
-      const delta = (Date.now() - this.timestamp) / (1000 * 60 * 60);
-      if (delta >= this.INACTIVITY_THRESHOLD_HOURS) {
-        debug(chalk.yellow(`No activity detected for ${delta.toFixed(2)} hours.`));
+      const delta = (Date.now() - this.lastUserMessageTime) / (1000 * 60 * 60);
+      if (delta >= this.INACTIVITY_THRESHOLD_HOURS && !this.hasPostedSinceLastUserMessage) {
+        debug(
+          chalk.yellow(
+            `No user activity detected for ${delta.toFixed(2)} hours, prompting conversation.`
+          )
+        );
+
         await this.interact();
-        this.updateLastMessageTime();
+        this.hasPostedSinceLastUserMessage = true;
       }
     };
 
     setInterval(check, 60 * 1000);
   }
 
-  private updateLastMessageTime() {
-    this.timestamp = Date.now();
-  }
+  async process(context: PluginContext, next: () => Promise<void>) {
+    if (context.message.sender !== this.bot.nick) {
+      this.lastUserMessageTime = Date.now();
+      this.hasPostedSinceLastUserMessage = false;
+    }
 
-  async process(_context: PluginContext, next: () => Promise<void>) {
-    this.updateLastMessageTime();
     return next();
   }
 
   async interact() {
     try {
       const context = await Database.getRepository(Message).find({
-        where: { channel: { name: this.bot.channel } },
+        where: {
+          channel: { name: this.bot.channel },
+          sender: { name: Not(this.bot.nick) }
+        },
         order: { id: 'DESC' },
         take: this.CONTEXT_SIZE,
         relations: ['sender', 'channel']
@@ -53,13 +63,12 @@ export class ShitpostPlugin extends BasePlugin {
         debug(chalk.redBright(`  * ${message.sender.name}: ${message.data}`));
       }
 
-      const conversation = context.slice(0, context.length - 1);
       const prompt = [
         '### Your Personality',
         ...this.bot.personality.template,
         '',
         '### IRC Logs',
-        ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
+        ...context.map((message) => `${message.sender.name}: ${message.data}`),
         '',
         '### Instructions',
         `You are ${this.bot.nick}.`,
