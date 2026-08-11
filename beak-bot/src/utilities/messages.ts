@@ -22,6 +22,14 @@ export class OutputMessage {
     // Remove whatever is left outside of the ASCII range
     response = response.replace(/[^\x20-\x7E]/g, '');
 
+    // Strip an opening laugh. The model picks this tic up from its own messages
+    // in the prompt context and reinforces it: "haha" openers went from 13% of
+    // beak's replies to 82% over time. Only strip it when real text follows.
+    response = response.replace(
+      /^\s*(?:ha(?:ha)*h?|hehe(?:he)*|heh+|lol+|lmao+|rofl)\b[\s,.!]+(?=\S)/i,
+      ''
+    );
+
     // Remove bot name
     const firstWord = /^\s*([^\s]*)/;
     const match = response.match(firstWord);

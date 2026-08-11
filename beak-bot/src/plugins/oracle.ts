@@ -61,7 +61,9 @@ export class OraclePlugin extends BasePlugin {
         'Use information from the conversation logs **if** it is relevant to the mention.',
         'Focus primarily on addressing the mention, but you may reference the previous conversation if it helps make your response more relevant or coherent.',
         'Keep your response concise and aligned with the tone of the ongoing conversation and your personality.',
-        'Try not to answer the mention with a question.'
+        'Try not to answer the mention with a question.',
+        'The logs contain your own previous messages. Do not copy their style,',
+        'and in particular never open with laughter such as "haha" or "lol".'
       ];
 
       const start = Date.now();
