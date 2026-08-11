@@ -3,6 +3,17 @@ import { LLMModel } from './index.js';
 import { OllamaModel } from './ollama.js';
 
 export class ModelFactory {
+  // Model names can themselves contain slashes ("openai/gpt-oss-120b"), so only
+  // the first slash separates the endpoint from the model name.
+  private static split(parameters: string): [string, string] {
+    const index = parameters.indexOf('/');
+    if (index === -1) {
+      return [parameters, ''];
+    }
+
+    return [parameters.slice(0, index), parameters.slice(index + 1)];
+  }
+
   static create(uri: string): LLMModel {
     const [protocol, parameters] = uri.split('://');
     if (!protocol || !parameters) {
@@ -11,7 +22,7 @@ export class ModelFactory {
 
     switch (protocol) {
       case 'ollama': {
-        const [baseUrl, modelName] = parameters.split('/');
+        const [baseUrl, modelName] = ModelFactory.split(parameters);
         if (!baseUrl || !modelName) {
           throw new Error('Invalid ollama URI: missing base URL or model name');
         }
@@ -20,7 +31,7 @@ export class ModelFactory {
       }
 
       case 'groq': {
-        const [apiKey, modelName] = parameters.split('/');
+        const [apiKey, modelName] = ModelFactory.split(parameters);
         if (!apiKey || !modelName) {
           throw new Error('Invalid groq URI: missing API key or model name');
         }

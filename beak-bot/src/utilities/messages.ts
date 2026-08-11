@@ -1,6 +1,16 @@
 export class OutputMessage {
   static cleanup(response: string, botName: string): string {
-    // Remove characters outside of the ASCII range
+    // Map the punctuation models like to emit onto its ASCII equivalent. Deleting
+    // it outright glues words together: "goose—just" became "goosejust".
+    response = response
+      .replace(/[‘’‚‛′]/g, "'")
+      .replace(/[“”„‟″]/g, '"')
+      .replace(/[‐-―−]/g, '-')
+      .replace(/…/g, '...')
+      .replace(/[  -   　]/g, ' ')
+      .replace(/[​-‍﻿]/g, '');
+
+    // Remove whatever is left outside of the ASCII range
     response = response.replace(/[^\x20-\x7E]/g, '');
 
     // Remove bot name

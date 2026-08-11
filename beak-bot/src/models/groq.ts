@@ -5,10 +5,11 @@ import { LLMModel } from './index.js';
 export class GroqModel implements LLMModel {
   private model: ChatGroq;
 
-  constructor(apiKey: string, model: string) {
+  constructor(apiKey: string, model: string, temperature = 0.9) {
     this.model = new ChatGroq({
       apiKey,
-      model
+      model,
+      temperature
     });
   }
 
@@ -16,7 +17,7 @@ export class GroqModel implements LLMModel {
     try {
       return await this.model.pipe(new StringOutputParser()).invoke(prompt);
     } catch (error) {
-      console.error('Error invoking the Ollama model:', error);
+      console.error('Error invoking the Groq model:', error);
       throw new Error('Failed to communicate with the language model.');
     }
   }
