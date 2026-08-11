@@ -1,4 +1,3 @@
-import { StringOutputParser } from '@langchain/core/output_parsers';
 import { ChatGroq } from '@langchain/groq';
 import { LLMModel } from './index.js';
 
@@ -15,7 +14,8 @@ export class GroqModel implements LLMModel {
 
   async invoke(prompt: string): Promise<string> {
     try {
-      return await this.model.pipe(new StringOutputParser()).invoke(prompt);
+      const response = await this.model.invoke(prompt);
+      return response.text;
     } catch (error) {
       console.error('Error invoking the Groq model:', error);
       throw new Error('Failed to communicate with the language model.');

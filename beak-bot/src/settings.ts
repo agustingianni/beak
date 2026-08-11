@@ -20,6 +20,18 @@ const SettingsSchema = z.object({
 
 export type BotSettings = z.infer<typeof SettingsSchema>;
 
+// Replace ${VAR} with the environment variable of that name, so secrets like
+// API keys stay in .env instead of being committed inside settings.yaml.
+function expandEnvironment(contents: string): string {
+  return contents.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => {
+    const value = process.env[name];
+    if (value === undefined) {
+      throw new Error(`settings.yaml references ${name}, but it is not set in the environment`);
+    }
+    return value;
+  });
+}
+
 const yamlPath = path.resolve('settings.yaml');
-const fileContents = parse(fs.readFileSync(yamlPath, 'utf8'));
+const fileContents = parse(expandEnvironment(fs.readFileSync(yamlPath, 'utf8')));
 export const Settings = SettingsSchema.parse(fileContents);

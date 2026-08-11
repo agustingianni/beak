@@ -4,6 +4,10 @@ services:
       context: beak-bot
       dockerfile: Dockerfile
     restart: "unless-stopped"
+    # API keys referenced as ${VAR} in beak-bot/settings.yaml. Supplied at run
+    # time rather than baked into the image, see beak-bot/.dockerignore.
+    env_file:
+      - ./beak-bot/.env
     environment:
       - DATABASE_URI=postgresql://beak:beak@database:5432/beak
     depends_on:

@@ -1,0 +1,12 @@
+# Secrets come in through env_file at run time, never baked into a layer.
+.env
+.env.*
+!.env.example
+
+# Rebuilt inside the image
+node_modules
+bin
+
+# Local state
+beak.db
+*.log

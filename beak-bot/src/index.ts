@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Must come first: settings.ts expands ${VAR} from the environment the moment
+// it is imported, so .env has to be loaded before that happens.
+import 'dotenv/config';
 import PrettyError from 'pretty-error';
 import { BeakBot } from './bots/beak.js';
 import { BotSettings } from './bots/index.js';

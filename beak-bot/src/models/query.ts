@@ -1,13 +1,12 @@
-import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
-import { ChromaClient, Collection, IEmbeddingFunction } from 'chromadb';
+import { OllamaEmbeddings } from '@langchain/ollama';
+import { ChromaClient, Collection, EmbeddingFunction } from 'chromadb';
 import { createHash } from 'crypto';
 
-class Embedder implements IEmbeddingFunction {
+class Embedder implements EmbeddingFunction {
   constructor(private embedder: OllamaEmbeddings) {}
 
-  async generate(element: string | string[]) {
-    const elements = Array.isArray(element) ? element : [element];
-    return await this.embedder.embedDocuments(elements);
+  async generate(texts: string[]): Promise<number[][]> {
+    return this.embedder.embedDocuments(texts);
   }
 }
 
