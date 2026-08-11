@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { BaseBot } from '../bots/index.js';
