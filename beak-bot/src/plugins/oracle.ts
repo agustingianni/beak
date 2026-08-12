@@ -22,7 +22,7 @@ export class OraclePlugin extends BasePlugin {
     const { message } = context;
 
     if (this.shouldEngage(message)) {
-      await this.interact();
+      await this.interact(message);
     }
 
     return next();
@@ -32,7 +32,12 @@ export class OraclePlugin extends BasePlugin {
     return message.sender !== this.bot.nick && message.content.includes(this.bot.nick);
   }
 
-  async interact() {
+  // The mention is passed in rather than read back as the last transcript
+  // line. It used to be read back, which held only as long as every message
+  // reached the transcript: a mention that is also a command, such as
+  // "!read https://example.com beak", is now kept out of the window, and the
+  // line before it would have been answered instead.
+  async interact(mention: BeakMessage) {
     try {
       const context = await this.transcript.recent(this.bot.channel, this.CONTEXT_SIZE);
 
@@ -41,14 +46,14 @@ export class OraclePlugin extends BasePlugin {
         debug(chalk.redBright(`  * ${line.sender}: ${line.text}`));
       }
 
-      // The mention is the line that woke us up, so it is always the last one.
-      const mention = context[context.length - 1];
-      if (!mention) {
-        error('Asked to react to a mention but the transcript came back empty');
-        return;
-      }
+      // We are called after the mention was saved, so the transcript usually
+      // ends with it. Show it once, under "### Mention" and not in the logs.
+      const last = context[context.length - 1];
+      const conversation =
+        last && last.sender === mention.sender && last.text === mention.content
+          ? context.slice(0, context.length - 1)
+          : context;
 
-      const conversation = context.slice(0, context.length - 1);
       const prompt = [
         '### Your Personality',
         ...this.bot.personality.template,
@@ -64,7 +69,7 @@ export class OraclePlugin extends BasePlugin {
         }),
         '',
         '### Mention',
-        `User ${mention.sender} mentioned you in the following message: "${mention.text}"`,
+        `User ${mention.sender} mentioned you in the following message: "${mention.content}"`,
         '',
         '### Instructions',
         `You are ${this.bot.nick}.`,

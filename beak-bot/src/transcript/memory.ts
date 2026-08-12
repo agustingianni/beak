@@ -1,4 +1,4 @@
-import { Line, RecentOptions, Transcript } from './index.js';
+import { Line, RecentOptions, Transcript, isCommand } from './index.js';
 
 // The second adapter at the transcript seam. It exists so a plugin can be
 // exercised without a live database: hand it the lines you want the plugin to
@@ -14,7 +14,7 @@ export class MemoryTranscript implements Transcript {
   }
 
   async recent(channel: string, limit: number, options: RecentOptions = {}): Promise<Line[]> {
-    const lines = this.lines.get(channel) ?? [];
+    const lines = (this.lines.get(channel) ?? []).filter((line) => !isCommand(line.text));
     const visible = options.excluding
       ? lines.filter((line) => line.sender !== options.excluding)
       : lines;
