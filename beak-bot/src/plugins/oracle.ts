@@ -3,7 +3,7 @@ import { BeakMessage } from '../bots/beak.js';
 import { BaseBot } from '../bots/index.js';
 import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
-import { OutputMessage } from '../utilities/messages.js';
+import { OutputMessage, stripOpeningLaugh } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class OraclePlugin extends BasePlugin {
@@ -50,7 +50,15 @@ export class OraclePlugin extends BasePlugin {
         ...this.bot.personality.template,
         '',
         '### IRC Logs',
-        ...conversation.map((message) => `${message.sender.name}: "${message.data}"`),
+        // Our own logged replies stay in the context, because dropping them
+        // makes the thread unreadable: half the turns here are reactions to
+        // things we said. Only the tic comes out, so the model still knows
+        // what it said without being shown 82% "haha" openers to copy.
+        ...conversation.map((message) => {
+          const data =
+            message.sender.name === this.bot.nick ? stripOpeningLaugh(message.data) : message.data;
+          return `${message.sender.name}: "${data}"`;
+        }),
         '',
         '### Mention',
         `User ${mention.sender.name} mentioned you in the following message: "${mention.data}"`,

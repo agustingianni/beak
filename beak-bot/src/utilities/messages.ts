@@ -4,6 +4,13 @@ function removeThinkBlock(input: string): string {
   return input.replace(/<think>[\s\S]*?<\/think>/gi, '');
 }
 
+// The model learns this tic from its own messages in the prompt, so it has to
+// be removed on the way in as well as on the way out. Only strips when real
+// text follows, leaving a bare "haha", and "lolcode" and "hardcore", alone.
+export function stripOpeningLaugh(input: string): string {
+  return input.replace(/^\s*(?:ha(?:ha)*h?|hehe(?:he)*|heh+|lol+|lmao+|rofl)\b[\s,.!]+(?=\S)/i, '');
+}
+
 export class OutputMessage {
   static cleanup(response: string, botName: string): string {
     // Drop the reasoning scratchpad if the model emitted one.
@@ -22,13 +29,8 @@ export class OutputMessage {
     // Remove whatever is left outside of the ASCII range
     response = response.replace(/[^\x20-\x7E]/g, '');
 
-    // Strip an opening laugh. The model picks this tic up from its own messages
-    // in the prompt context and reinforces it: "haha" openers went from 13% of
-    // beak's replies to 82% over time. Only strip it when real text follows.
-    response = response.replace(
-      /^\s*(?:ha(?:ha)*h?|hehe(?:he)*|heh+|lol+|lmao+|rofl)\b[\s,.!]+(?=\S)/i,
-      ''
-    );
+    // Strip an opening laugh on the way out. See stripOpeningLaugh above.
+    response = stripOpeningLaugh(response);
 
     // Models like to prefix a reply with their own nickname. Strip that, but
     // match the whole word: testing for the name as a substring ate any word
