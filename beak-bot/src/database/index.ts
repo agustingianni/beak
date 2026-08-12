@@ -69,7 +69,7 @@ export class User {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ unique: true })
   name!: string;
 
   @ManyToMany(() => Channel, (channel) => channel.users)
@@ -312,18 +312,38 @@ export async function findOrCreateServer(
   return server;
 }
 
-export async function findOrCreateUser(userName: string) {
-  // Create the user if it does not exist.
-  let user = await Database.getRepository(User).findOne({
-    where: { name: userName }
-  });
+// Postgres: unique_violation.
+const UNIQUE_VIOLATION = '23505';
 
-  if (!user) {
-    user = await Database.getRepository(User).save({
-      name: userName,
-      channels: []
-    });
+function isUniqueViolation(err: unknown): boolean {
+  const candidate = err as { code?: string; driverError?: { code?: string } };
+  return candidate?.code === UNIQUE_VIOLATION || candidate?.driverError?.code === UNIQUE_VIOLATION;
+}
+
+export async function findOrCreateUser(userName: string) {
+  const repository = Database.getRepository(User);
+
+  const existing = await repository.findOne({ where: { name: userName } });
+  if (existing) {
+    return existing;
   }
 
-  return user;
+  // There is an await above, so two handlers reacting to the same new nick can
+  // both get here. That is how four rows named "goose" appeared. With the
+  // unique index on user.name Postgres now rejects the loser, so take that as
+  // "someone else just created it" and use theirs.
+  try {
+    return await repository.save({ name: userName, channels: [] });
+  } catch (err) {
+    if (!isUniqueViolation(err)) {
+      throw err;
+    }
+
+    const raced = await repository.findOne({ where: { name: userName } });
+    if (!raced) {
+      throw err;
+    }
+
+    return raced;
+  }
 }
