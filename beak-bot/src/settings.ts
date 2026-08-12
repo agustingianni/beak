@@ -36,6 +36,43 @@ function expandEnvironment(contents: string): string {
   });
 }
 
+// Model URI schemes whose first segment is a host rather than an API key.
+// Everything else is assumed to carry a secret there, so a scheme added later
+// is redacted by default instead of leaking until someone remembers this file.
+const SECRETLESS_SCHEMES = new Set(['ollama']);
+
+function redactModelUri(uri: string): string {
+  const [scheme, parameters] = uri.split('://');
+  if (!scheme || !parameters) {
+    // Not a shape we recognise, so we cannot say which part is the secret.
+    return '***';
+  }
+
+  if (SECRETLESS_SCHEMES.has(scheme)) {
+    return uri;
+  }
+
+  // Same rule as ModelFactory: only the first slash separates the key from the
+  // model name, because model names contain slashes ("openai/gpt-oss-120b").
+  const index = parameters.indexOf('/');
+  const model = index === -1 ? '' : parameters.slice(index + 1);
+  return `${scheme}://***/${model}`;
+}
+
+// Settings holds live credentials, and index.ts logs it on every startup. That
+// put both API keys into "docker compose logs" in plain text. Log this instead:
+// the shape stays readable, the secrets do not survive the copy.
+export function redactSecrets(settings: BotSettings): BotSettings {
+  return {
+    ...settings,
+    server: {
+      ...settings.server,
+      ...(settings.server.password === undefined ? {} : { password: '***' })
+    },
+    models: settings.models.map(redactModelUri)
+  };
+}
+
 const yamlPath = path.resolve('settings.yaml');
 const fileContents = parse(expandEnvironment(fs.readFileSync(yamlPath, 'utf8')));
 export const Settings = SettingsSchema.parse(fileContents);

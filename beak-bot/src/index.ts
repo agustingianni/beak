@@ -13,14 +13,14 @@ import { LLMAgent, Personality } from './models/index.js';
 import { OraclePlugin } from './plugins/oracle.js';
 import { PersonalityPlugin } from './plugins/personality.js';
 import { ShitpostPlugin } from './plugins/shitpost.js';
-import { Settings } from './settings.js';
+import { Settings, redactSecrets } from './settings.js';
 import { ReadPlugin } from './plugins/read.js';
 import { DatabaseTranscript } from './transcript/database.js';
 import { Reply } from './reply/index.js';
 
 async function main() {
   info(`Beak Settings:`);
-  info(Settings);
+  info(redactSecrets(Settings));
 
   try {
     // Initialize the database
