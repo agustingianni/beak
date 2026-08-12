@@ -1,4 +1,3 @@
-import { Mutex } from 'async-mutex';
 import * as matrixOrgIrc from 'matrix-org-irc';
 import {
   Channel,
@@ -18,7 +17,6 @@ import {
   unlinkUserFromChannel
 } from '../database/index.js';
 import { Debug, Trace, debug, error } from '../logging/index.js';
-import { WithMutex } from '../utilities/mutex.js';
 import { BaseClient } from './index.js';
 
 export interface IRCClientSettings {
@@ -37,7 +35,6 @@ export interface IRCClientSettings {
 
 export class IRCClient extends BaseClient {
   service = 'irc';
-  mutex: Mutex = new Mutex();
   client: matrixOrgIrc.Client;
   server!: Server;
   self!: User;
@@ -69,7 +66,6 @@ export class IRCClient extends BaseClient {
     return this.client.say(recipient, message);
   }
 
-  @WithMutex()
   async handlePublicMessage(senderName: string, channelName: string, messageData: string) {
     this.emit('public-message', {
       sender: senderName,
@@ -78,7 +74,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handlePrivateMessage(senderName: string, recipientName: string, messageData: string) {
     this.emit('private-message', {
       sender: senderName,
@@ -96,7 +91,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleJoin(channelName: string, userName: string) {
     const user = await findOrCreateUser(userName);
     const channel = await findOrCreateChannel(channelName, this.server);
@@ -104,7 +98,6 @@ export class IRCClient extends BaseClient {
     await linkUserToChannel(user.id, channel.id);
   }
 
-  @WithMutex()
   async handlePart(channelName: string, userName: string) {
     const user = await Database.getRepository(User).findOneBy({ name: userName });
     if (!user) {
@@ -124,12 +117,10 @@ export class IRCClient extends BaseClient {
     debug(`Removed user ${userName} from channel ${channelName}`);
   }
 
-  @WithMutex()
   async handleMotd(motd: string) {
     await Database.getRepository(Server).update(this.server.id, { motd });
   }
 
-  @WithMutex()
   async handleNotice(from: string, to: string, content: string) {
     let toChannel, toUser, fromUser, fromServer;
 
@@ -166,7 +157,6 @@ export class IRCClient extends BaseClient {
     await Database.getRepository(Notice).save(notice);
   }
 
-  @WithMutex()
   async handleNickChange(oldNick: string, newNick: string) {
     const { affected } = await Database.getRepository(User).update(
       { name: oldNick },
@@ -179,7 +169,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleChannelMode(channelName: string, mode: string) {
     const { affected } = await Database.getRepository(Channel).update(
       { name: channelName },
@@ -192,7 +181,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleConnected() {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'connected' },
@@ -200,7 +188,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleNames(channelName: string, users: Map<string, string>) {
     const channel = await Database.getRepository(Channel).findOneBy({ name: channelName });
     if (!channel) {
@@ -214,7 +201,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleTopic(channelName: string, channelTopic: string, userMask: string) {
     // Get the channel.
     const channel = await Database.getRepository(Channel).findOneBy({ name: channelName });
@@ -247,7 +233,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handlePing() {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'ping' },
@@ -255,7 +240,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handlePong() {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'pong' },
@@ -263,7 +247,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleRegistered() {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'registered' },
@@ -271,7 +254,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleKick(channelName: string, kickedName: string, kickerName: string, reason: string) {
     const channel = await Database.getRepository(Channel).findOneBy({ name: channelName });
     if (!channel) {
@@ -285,7 +267,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleInvite(channelName: string, userName: string) {
     const user = await Database.getRepository(User).findOneBy({ name: userName });
     if (!user) {
@@ -301,7 +282,6 @@ export class IRCClient extends BaseClient {
     error('invite', channelName, userName);
   }
 
-  @WithMutex()
   async handleQuit(userName: string, reason: string) {
     const user = await Database.getRepository(User).findOneBy({ name: userName });
     if (!user) {
@@ -318,7 +298,6 @@ export class IRCClient extends BaseClient {
   // action: (from: string, to: string, action: string, message: Message) => void;
 
   @Debug
-  @WithMutex()
   async handleAction(userName: string, channelName: string, messageData: string) {
     const sender = await Database.getRepository(User).findOneBy({ name: userName });
     if (!sender) {
@@ -340,7 +319,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleSetMode(
     channelName: string,
     userName: string,
@@ -361,7 +339,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleUnsetMode(
     channelName: string,
     userName: string,
@@ -382,7 +359,6 @@ export class IRCClient extends BaseClient {
     }
   }
 
-  @WithMutex()
   async handleError(error: any) {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'application-error', error },
@@ -390,7 +366,6 @@ export class IRCClient extends BaseClient {
     });
   }
 
-  @WithMutex()
   async handleNetworkError(error: Error) {
     await Database.getRepository(ServerEvent).save({
       event: { event: 'network-error', error },
@@ -439,9 +414,8 @@ export class IRCClient extends BaseClient {
     //
     // This deliberately does not try to repair the connection. It watches raw
     // traffic, which is emitted for every inbound line before any of our
-    // handlers run, so it keeps working even if the shared mutex those
-    // handlers contend for is stuck. When the line goes quiet it kills the
-    // process and lets the container restart policy rebuild everything.
+    // handlers run. When the line goes quiet it kills the process and lets
+    // the container restart policy rebuild everything.
     this.client.addListener('raw', () => {
       this.lastTraffic = Date.now();
     });

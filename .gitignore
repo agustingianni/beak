@@ -287,3 +287,7 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+# Local runtime state and per-deployment config, never commit these.
+beak-bot/beak.db
+*.db
+beak-bot/settings.yaml
