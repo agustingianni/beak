@@ -1,0 +1,18 @@
+# Copy to settings.yaml and edit. settings.yaml is gitignored because it is per
+# deployment: the server runs #cruisy-bathroom while a local checkout usually
+# runs somewhere harmless.
+#
+# ${VAR} is expanded from the environment when settings.ts loads this file, so
+# API keys live in .env and never in here. Only models[0] is used; the rest are
+# documentation, there is no automatic fallback.
+user:
+  nick: beak
+  name: Metal Beak
+  channel: '#test'
+server:
+  host: 0x4f.network
+  port: 6697
+  secure: true
+models:
+  - openrouter://${OPENROUTER_API_KEY}/nousresearch/hermes-4-70b
+  - groq://${GROQ_API_KEY}/llama-3.3-70b-versatile

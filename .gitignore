@@ -287,7 +287,26 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-# Local runtime state and per-deployment config, never commit these.
-beak-bot/beak.db
+# Never commit these. A stray "git add -A" put beak.db, 16k IRC messages from
+# real people, into this public repo once. The rules are deliberately broad and
+# path independent so a new package or a moved file cannot slip past them.
+
+# Runtime state: the sqlite database and anything dumped out of postgres.
 *.db
-beak-bot/settings.yaml
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+
+# Per-deployment config. settings.yaml holds the channel and, historically,
+# API keys. settings.example.yaml is the one that belongs in git.
+settings.yaml
+!settings.example.yaml
+
+# Secrets, in every shape this repo has used.
+.env
+.env.*
+!.env.example
+.envrc
