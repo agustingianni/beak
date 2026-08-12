@@ -39,6 +39,13 @@ export class IRCClient extends BaseClient {
   server!: Server;
   self!: User;
 
+  // The server pings roughly every two minutes, 378 seconds at the worst
+  // observed. Anything past this means we are not hearing from it at all.
+  private readonly SILENCE_LIMIT_MS = 15 * 60 * 1000;
+  private readonly WATCHDOG_INTERVAL_MS = 30 * 1000;
+  private lastTraffic = Date.now();
+  private watchdog: NodeJS.Timeout | undefined;
+
   constructor(private settings: IRCClientSettings) {
     super();
 
@@ -466,10 +473,44 @@ export class IRCClient extends BaseClient {
     this.client.addListener('netError', this.handleNetworkError.bind(this));
     this.client.addListener('error', this.handleError.bind(this));
 
+    // Watchdog. Every gap over 30 minutes in the server_event table ended only
+    // when the process started again, seventeen of them, about eighty days of
+    // silence in total, the longest twenty eight days. The connection dies and
+    // nothing downstream notices.
+    //
+    // This deliberately does not try to repair the connection. It watches raw
+    // traffic, which is emitted for every inbound line before any of our
+    // handlers run, so it keeps working even if the shared mutex those
+    // handlers contend for is stuck. When the line goes quiet it kills the
+    // process and lets the container restart policy rebuild everything.
+    this.client.addListener('raw', () => {
+      this.lastTraffic = Date.now();
+    });
+
+    this.lastTraffic = Date.now();
+    this.watchdog = setInterval(() => {
+      const silentFor = Date.now() - this.lastTraffic;
+      if (silentFor < this.SILENCE_LIMIT_MS) {
+        return;
+      }
+
+      error(
+        `No traffic from ${this.settings.server.host} for ${Math.round(silentFor / 1000)}s. ` +
+          `The connection is gone and has not come back. Exiting so the container restarts.`
+      );
+
+      process.exit(1);
+    }, this.WATCHDOG_INTERVAL_MS);
+
     await new Promise<void>((resolve) => this.client.connect(resolve));
   }
 
   async stop() {
+    if (this.watchdog) {
+      clearInterval(this.watchdog);
+      this.watchdog = undefined;
+    }
+
     this.client.removeAllListeners();
     await new Promise<void>((resolve) =>
       this.client.disconnect(
