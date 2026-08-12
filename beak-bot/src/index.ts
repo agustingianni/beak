@@ -37,10 +37,14 @@ async function main() {
     channel: Settings.user.channel
   };
 
+  // Identity is derived from the settings so it cannot drift out of sync with
+  // the channel we actually joined. Character comes from settings.yaml, which
+  // is bind mounted, so changing it is an edit and a restart rather than a
+  // rebuild. !personality still overrides both until the process restarts.
   const personality = new Personality([
     `Your IRC nickname is ${Settings.user.nick}.`,
     `You hang around an IRC channel named ${Settings.user.channel}.`,
-    'User goose is your creator and best friend.'
+    ...(Settings.personality ?? ['User goose is your creator and best friend.'])
   ]);
 
   const agent = new LLMAgent(ModelFactory.create(Settings.models[0]!));

@@ -15,6 +15,10 @@ const SettingsSchema = z.object({
     secure: z.boolean(),
     password: z.string().optional()
   }),
+  // One line per trait. The nickname and channel lines are added automatically
+  // from the user block above, so they do not belong here. Omit the key
+  // entirely and index.ts falls back to a built in default.
+  personality: z.array(z.string()).optional(),
   models: z.array(z.string())
 });
 

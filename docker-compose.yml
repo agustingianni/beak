@@ -8,6 +8,11 @@ services:
     # time rather than baked into the image, see beak-bot/.dockerignore.
     env_file:
       - ./beak-bot/.env
+    # Mounted rather than baked into the image, so editing the personality or
+    # switching model is an edit and a restart instead of a rebuild. The image
+    # still ships a copy, which this shadows.
+    volumes:
+      - ./beak-bot/settings.yaml:/app/settings.yaml:ro
     environment:
       - DATABASE_URI=postgresql://beak:beak@database:5432/beak
     depends_on:
