@@ -11,8 +11,10 @@ import {
   Topic,
   User,
   UserEvent,
+  findOrCreateChannel,
   findOrCreateServer,
-  findOrCreateUser
+  findOrCreateUser,
+  linkUserToChannel
 } from '../database/index.js';
 import { Debug, Trace, debug, error } from '../logging/index.js';
 import { WithMutex } from '../utilities/mutex.js';
@@ -96,24 +98,9 @@ export class IRCClient extends BaseClient {
   @WithMutex()
   async handleJoin(channelName: string, userName: string) {
     const user = await findOrCreateUser(userName);
+    const channel = await findOrCreateChannel(channelName, this.server);
 
-    let channel = await Database.getRepository(Channel).findOne({
-      where: { name: channelName },
-      relations: ['users']
-    });
-
-    if (!channel) {
-      channel = await Database.getRepository(Channel).save({
-        name: channelName,
-        server: this.server,
-        users: [user]
-      });
-    }
-
-    if (!channel.users.some((u) => u.id === user.id)) {
-      channel.users.push(user);
-      await Database.getRepository(Channel).save(channel);
-    }
+    await linkUserToChannel(user.id, channel.id);
   }
 
   @WithMutex()
@@ -227,15 +214,8 @@ export class IRCClient extends BaseClient {
     }
 
     for (const [name] of users) {
-      await findOrCreateUser(name);
-
-      const user = await Database.getRepository(User).findOneOrFail({
-        where: { name },
-        relations: ['channels']
-      });
-
-      user.channels.push(channel);
-      await Database.getRepository(User).save(user);
+      const user = await findOrCreateUser(name);
+      await linkUserToChannel(user.id, channel.id);
     }
   }
 

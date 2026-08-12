@@ -320,6 +320,45 @@ function isUniqueViolation(err: unknown): boolean {
   return candidate?.code === UNIQUE_VIOLATION || candidate?.driverError?.code === UNIQUE_VIOLATION;
 }
 
+export async function findOrCreateChannel(channelName: string, server: Server) {
+  const repository = Database.getRepository(Channel);
+
+  const existing = await repository.findOne({ where: { name: channelName, server: { id: server.id } } });
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await repository.save({ name: channelName, server, users: [] });
+  } catch (err) {
+    if (!isUniqueViolation(err)) {
+      throw err;
+    }
+
+    const raced = await repository.findOne({
+      where: { name: channelName, server: { id: server.id } }
+    });
+    if (!raced) {
+      throw err;
+    }
+
+    return raced;
+  }
+}
+
+// Membership used to be a read-modify-write: load channel.users, push, save the
+// whole relation back. Two joins landing together could both load the same list,
+// and the second save would drop the link the first had just added, because
+// TypeORM diffs what you hand it against what it loaded. The join table's
+// primary key is (userId, channelId), so a plain insert that ignores conflicts
+// is idempotent and cannot lose anything.
+export async function linkUserToChannel(userId: number, channelId: number) {
+  await Database.query(
+    'INSERT INTO user_channels_channel ("userId", "channelId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    [userId, channelId]
+  );
+}
+
 export async function findOrCreateUser(userName: string) {
   const repository = Database.getRepository(User);
 
