@@ -95,12 +95,7 @@ export class IRCClient extends BaseClient {
 
   @WithMutex()
   async handleJoin(channelName: string, userName: string) {
-    let user = await Database.getRepository(User).findOneBy({ name: userName });
-    if (!user) {
-      user = await Database.getRepository(User).save({
-        name: userName
-      });
-    }
+    const user = await findOrCreateUser(userName);
 
     let channel = await Database.getRepository(Channel).findOne({
       where: { name: channelName },
@@ -232,17 +227,12 @@ export class IRCClient extends BaseClient {
     }
 
     for (const [name] of users) {
-      let user = await Database.getRepository(User).findOne({
+      await findOrCreateUser(name);
+
+      const user = await Database.getRepository(User).findOneOrFail({
         where: { name },
         relations: ['channels']
       });
-
-      if (!user) {
-        user = await Database.getRepository(User).save({
-          name,
-          channels: []
-        });
-      }
 
       user.channels.push(channel);
       await Database.getRepository(User).save(user);
@@ -261,13 +251,7 @@ export class IRCClient extends BaseClient {
     // Extract the user name.
     const userName = userMask.match(/^([^!]+)!/)?.[1]!;
 
-    // Create the user if it does not exist.
-    let user = await Database.getRepository(User).findOneBy({ name: userName });
-    if (!user) {
-      user = await Database.getRepository(User).save({
-        name: userName
-      });
-    }
+    const user = await findOrCreateUser(userName);
 
     if (
       await Database.getRepository(Topic).existsBy({
