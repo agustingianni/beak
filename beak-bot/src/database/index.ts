@@ -8,7 +8,8 @@ import {
   ManyToMany,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
+  Unique
 } from 'typeorm';
 
 const { DATABASE_URI, DATABASE_SYNCHRONIZE, DATABASE_LOGGING, DATABASE_DROP_SCHEMA } = envsafe({
@@ -96,6 +97,8 @@ export class User {
 }
 
 @Entity()
+// A channel name is unique per server, not globally.
+@Unique(['name', 'server'])
 export class Channel {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -355,6 +358,13 @@ export async function findOrCreateChannel(channelName: string, server: Server) {
 export async function linkUserToChannel(userId: number, channelId: number) {
   await Database.query(
     'INSERT INTO user_channels_channel ("userId", "channelId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    [userId, channelId]
+  );
+}
+
+export async function unlinkUserFromChannel(userId: number, channelId: number) {
+  await Database.query(
+    'DELETE FROM user_channels_channel WHERE "userId" = $1 AND "channelId" = $2',
     [userId, channelId]
   );
 }

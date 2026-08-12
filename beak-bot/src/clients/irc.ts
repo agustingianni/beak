@@ -14,7 +14,8 @@ import {
   findOrCreateChannel,
   findOrCreateServer,
   findOrCreateUser,
-  linkUserToChannel
+  linkUserToChannel,
+  unlinkUserFromChannel
 } from '../database/index.js';
 import { Debug, Trace, debug, error } from '../logging/index.js';
 import { WithMutex } from '../utilities/mutex.js';
@@ -111,22 +112,16 @@ export class IRCClient extends BaseClient {
       return;
     }
 
-    const channel = await Database.getRepository(Channel).findOne({
-      where: { name: channelName },
-      relations: ['users']
-    });
-
+    const channel = await Database.getRepository(Channel).findOneBy({ name: channelName });
     if (!channel) {
       error(`Error handling part: channel ${channelName} not found`);
       return;
     }
 
-    // Remove the user from the channel if present.
-    if (channel.users.some((u) => u.id === user.id)) {
-      channel.users = channel.users.filter((u) => u.id !== user.id);
-      await Database.getRepository(Channel).save(channel);
-      error(`Removed user ${userName} from channel ${channelName}`);
-    }
+    // Deleting the one join table row cannot disturb anybody else's, unlike
+    // loading the whole relation, filtering it and saving it back.
+    await unlinkUserFromChannel(user.id, channel.id);
+    debug(`Removed user ${userName} from channel ${channelName}`);
   }
 
   @WithMutex()
