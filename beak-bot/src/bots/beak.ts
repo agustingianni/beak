@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { BaseClient, PrivateMessage, PublicMessage } from '../clients/index.js';
-import { Channel, Database, Message, User } from '../database/index.js';
+import { Channel, Database, Message, findOrCreateUser } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
 import { LLMAgent, Personality } from '../models/index.js';
 import { BaseBot, BotSettings } from './index.js';
@@ -33,15 +33,17 @@ export class BeakBot extends BaseBot {
   }
 
   async publicMessageHandler(event: PublicMessage) {
-    const sender = await Database.getRepository(User).findOneBy({ name: event.sender });
-    if (!sender) {
-      error(`Error handling message: user ${event.sender} not found`);
-      return;
-    }
+    // Create the sender rather than bailing out. This used to return early,
+    // which silently threw the message away: anyone who spoke before their row
+    // existed, which happens while NAMES is still being processed after a
+    // join, was simply not recorded.
+    const sender = await findOrCreateUser(event.sender);
 
     const channel = await Database.getRepository(Channel).findOneBy({ name: event.channel });
     if (!channel) {
-      error(`Error handling message: channel ${event.channel} not found`);
+      error(
+        `Dropping message from ${event.sender}: channel ${event.channel} is not in the database yet`
+      );
       return;
     }
 
@@ -60,17 +62,8 @@ export class BeakBot extends BaseBot {
   }
 
   async privateMessageHandler(event: PrivateMessage) {
-    const sender = await Database.getRepository(User).findOneBy({ name: event.sender });
-    if (!sender) {
-      error(`Error handling message: user ${event.sender} not found`);
-      return;
-    }
-
-    const recipient = await Database.getRepository(User).findOneBy({ name: event.recipient });
-    if (!recipient) {
-      error(`Error handling message: user ${event.recipient} not found`);
-      return;
-    }
+    const sender = await findOrCreateUser(event.sender);
+    const recipient = await findOrCreateUser(event.recipient);
 
     await Database.getRepository(Message).save({
       data: event.content,
