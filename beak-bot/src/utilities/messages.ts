@@ -30,22 +30,25 @@ export class OutputMessage {
       ''
     );
 
-    // Remove bot name
-    const firstWord = /^\s*([^\s]*)/;
-    const match = response.match(firstWord);
+    // Models like to prefix a reply with their own nickname. Strip that, but
+    // match the whole word: testing for the name as a substring ate any word
+    // that merely contained it, turning "beaker" into "".
+    const name = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    response = response.replace(new RegExp(`^\\s*${name}\\b[\\s,:;>-]*`, 'i'), '');
 
-    if (match) {
-      const firstWord = match[1]!;
-      const name = new RegExp(botName, 'i');
+    response = response.trim();
 
-      // Remove bot name.
-      if (name.test(firstWord)) {
-        response = response.replace(firstWord, '');
+    // Unwrap a fully quoted reply. Stripping each end independently mangled
+    // anything that merely opened with a quote: "suck by beak"? became
+    // suck by beak"?. Only unwrap when the quote appears exactly twice, so a
+    // reply like "a" and "b" is left alone.
+    const first = response.at(0);
+    const last = response.at(-1);
+    if (first && first === last && `'"\``.includes(first)) {
+      if (response.split(first).length - 1 === 2) {
+        response = response.slice(1, -1).trim();
       }
     }
-
-    // Remove leading and trailing quotes
-    response = response.trim().replace(/^['"`]+|['"`]+$/g, '');
 
     return response;
   }

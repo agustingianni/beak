@@ -4,8 +4,36 @@ import { Personality } from '../models/index.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class PersonalityPlugin extends BasePlugin {
+  // A whole IRC line is 512 bytes including the ":nick!user@host PRIVMSG
+  // #channel :" envelope, so a command much past this either arrives truncated
+  // or gets split, and the tail lands as a second message we never see.
+  private readonly TRUNCATION_RISK = 350;
+
   constructor(bot: BaseBot) {
     super(bot);
+  }
+
+  // set and add used to change the personality without saying anything, so a
+  // command that was silently cut in transit looked exactly like one that
+  // worked. Always confirm, and say what actually arrived.
+  private async report(sender: string, rawCommand: string, personality: Personality) {
+    const lines = personality.template.length;
+    await this.bot.send(
+      'private',
+      sender,
+      `Personality is now ${lines} line${lines === 1 ? '' : 's'}, ` +
+        `${personality.template.join(' ').length} characters. Use "!personality show" to read it back.`
+    );
+
+    if (rawCommand.length >= this.TRUNCATION_RISK) {
+      await this.bot.send(
+        'private',
+        sender,
+        `Careful: that command was ${rawCommand.length} characters, close to the IRC line limit, ` +
+          `so the end may have been cut off before it reached me. ` +
+          `Check with "!personality show", and prefer several short "!personality add" lines.`
+      );
+    }
   }
 
   async process(context: PluginContext, next: () => Promise<void>) {
@@ -36,6 +64,9 @@ export class PersonalityPlugin extends BasePlugin {
         if (args) {
           info(`Adding to personality: ${args}`);
           this.bot.personality = new Personality([...this.bot.personality.template, args]);
+          await this.report(message.sender, message.content, this.bot.personality);
+        } else {
+          await this.bot.send('private', message.sender, 'Nothing to add. Give me a trait.');
         }
         break;
 
@@ -43,6 +74,9 @@ export class PersonalityPlugin extends BasePlugin {
         if (args) {
           info(`Setting new personality: ${args}`);
           this.bot.personality = new Personality([args]);
+          await this.report(message.sender, message.content, this.bot.personality);
+        } else {
+          await this.bot.send('private', message.sender, 'Nothing to set. Give me a personality.');
         }
         break;
 
