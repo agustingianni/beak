@@ -2,10 +2,14 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { BaseBot } from '../bots/index.js';
 import { error, info } from '../logging/index.js';
+import { Reply } from '../reply/index.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class ReadPlugin extends BasePlugin {
-  constructor(bot: BaseBot) {
+  constructor(
+    bot: BaseBot,
+    private reply: Reply
+  ) {
     super(bot);
   }
 
@@ -56,10 +60,7 @@ export class ReadPlugin extends BasePlugin {
         'Focus on interesting insights, not just a generic summary.'
       ];
 
-      console.log(prompt);
-
-      const response = await this.bot.agent.query(prompt);
-      await this.bot.send('public', this.bot.channel, response);
+      await this.reply.publish('public', this.bot.channel, prompt);
     } catch (err) {
       error(`!read error for ${url}:`, err);
       await this.bot.send('private', message.sender, `Failed to process URL: ${err}`);

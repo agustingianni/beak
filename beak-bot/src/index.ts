@@ -15,6 +15,8 @@ import { PersonalityPlugin } from './plugins/personality.js';
 import { ShitpostPlugin } from './plugins/shitpost.js';
 import { Settings } from './settings.js';
 import { ReadPlugin } from './plugins/read.js';
+import { DatabaseTranscript } from './transcript/database.js';
+import { Reply } from './reply/index.js';
 
 async function main() {
   info(`Beak Settings:`);
@@ -49,11 +51,20 @@ async function main() {
 
   const agent = new LLMAgent(ModelFactory.create(Settings.models[0]!));
 
+  // The only place that picks a transcript adapter. Plugins accept one, so a
+  // test can hand them a MemoryTranscript instead and never touch the database.
+  const transcript = new DatabaseTranscript();
+
   const bot = new BeakBot(client, settings, agent, personality);
+
+  // Every generated message leaves through here, so cleanup and timing are
+  // applied once rather than remembered three times.
+  const reply = new Reply(agent, bot);
+
   bot.addPlugin(new PersonalityPlugin(bot));
-  bot.addPlugin(new OraclePlugin(bot));
-  bot.addPlugin(new ShitpostPlugin(bot));
-  bot.addPlugin(new ReadPlugin(bot));
+  bot.addPlugin(new OraclePlugin(bot, transcript, reply));
+  bot.addPlugin(new ShitpostPlugin(bot, transcript, reply));
+  bot.addPlugin(new ReadPlugin(bot, reply));
 
   await bot.start();
 

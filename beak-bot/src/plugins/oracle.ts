@@ -1,15 +1,20 @@
 import chalk from 'chalk';
 import { BeakMessage } from '../bots/beak.js';
 import { BaseBot } from '../bots/index.js';
-import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
-import { OutputMessage, stripOpeningLaugh } from '../utilities/messages.js';
+import { Reply } from '../reply/index.js';
+import { Transcript } from '../transcript/index.js';
+import { stripOpeningLaugh } from '../utilities/messages.js';
 import { BasePlugin, PluginContext } from './index.js';
 
 export class OraclePlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
 
-  constructor(bot: BaseBot) {
+  constructor(
+    bot: BaseBot,
+    private transcript: Transcript,
+    private reply: Reply
+  ) {
     super(bot);
   }
 
@@ -29,21 +34,20 @@ export class OraclePlugin extends BasePlugin {
 
   async interact() {
     try {
-      const context = await Database.getRepository(Message).find({
-        where: { channel: { name: this.bot.channel } },
-        order: { id: 'DESC' },
-        take: this.CONTEXT_SIZE,
-        relations: ['sender', 'channel']
-      });
-
-      context.reverse();
+      const context = await this.transcript.recent(this.bot.channel, this.CONTEXT_SIZE);
 
       debug(chalk.redBright(`Preparing interaction with context:`));
-      for (const message of context) {
-        debug(chalk.redBright(`  * ${message.sender.name}: ${message.data}`));
+      for (const line of context) {
+        debug(chalk.redBright(`  * ${line.sender}: ${line.text}`));
       }
 
-      const mention = context[context.length - 1]!;
+      // The mention is the line that woke us up, so it is always the last one.
+      const mention = context[context.length - 1];
+      if (!mention) {
+        error('Asked to react to a mention but the transcript came back empty');
+        return;
+      }
+
       const conversation = context.slice(0, context.length - 1);
       const prompt = [
         '### Your Personality',
@@ -54,18 +58,17 @@ export class OraclePlugin extends BasePlugin {
         // makes the thread unreadable: half the turns here are reactions to
         // things we said. Only the tic comes out, so the model still knows
         // what it said without being shown 82% "haha" openers to copy.
-        ...conversation.map((message) => {
-          const data =
-            message.sender.name === this.bot.nick ? stripOpeningLaugh(message.data) : message.data;
-          return `${message.sender.name}: "${data}"`;
+        ...conversation.map((line) => {
+          const text = line.sender === this.bot.nick ? stripOpeningLaugh(line.text) : line.text;
+          return `${line.sender}: "${text}"`;
         }),
         '',
         '### Mention',
-        `User ${mention.sender.name} mentioned you in the following message: "${mention.data}"`,
+        `User ${mention.sender} mentioned you in the following message: "${mention.text}"`,
         '',
         '### Instructions',
         `You are ${this.bot.nick}.`,
-        `Respond directly to the mention by ${mention.sender.name} with a short, coherent message.`,
+        `Respond directly to the mention by ${mention.sender} with a short, coherent message.`,
         'Use information from the conversation logs **if** it is relevant to the mention.',
         'Focus primarily on addressing the mention, but you may reference the previous conversation if it helps make your response more relevant or coherent.',
         'Keep your response concise and aligned with the tone of the ongoing conversation and your personality.',
@@ -74,22 +77,7 @@ export class OraclePlugin extends BasePlugin {
         'and in particular never open with laughter such as "haha" or "lol".'
       ];
 
-      const start = Date.now();
-      const response = await this.bot.agent.query(prompt);
-      const end = Date.now();
-      debug(`Response generated in ${end - start}ms`);
-
-      if (!response.includes('\n')) {
-        debug(chalk.greenBright(response));
-      } else {
-        debug(chalk.redBright(response));
-      }
-
-      await this.bot.send(
-        'public',
-        this.bot.channel,
-        OutputMessage.cleanup(response, this.bot.nick)
-      );
+      await this.reply.publish('public', this.bot.channel, prompt);
     } catch (err) {
       error('Error during interaction:', err);
     }

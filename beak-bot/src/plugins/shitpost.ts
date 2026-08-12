@@ -1,10 +1,9 @@
 import chalk from 'chalk';
 import { BaseBot } from '../bots/index.js';
-import { Database, Message } from '../database/index.js';
 import { debug, error } from '../logging/index.js';
-import { OutputMessage } from '../utilities/messages.js';
+import { Reply } from '../reply/index.js';
+import { Transcript } from '../transcript/index.js';
 import { BasePlugin, PluginContext } from './index.js';
-import { Not } from 'typeorm';
 
 export class ShitpostPlugin extends BasePlugin {
   private readonly CONTEXT_SIZE = 16;
@@ -12,7 +11,11 @@ export class ShitpostPlugin extends BasePlugin {
   private lastUserMessageTime: number = Date.now();
   private hasPostedSinceLastUserMessage = false;
 
-  constructor(bot: BaseBot) {
+  constructor(
+    bot: BaseBot,
+    private transcript: Transcript,
+    private reply: Reply
+  ) {
     super(bot);
     this.startInactivityTimer();
   }
@@ -46,21 +49,16 @@ export class ShitpostPlugin extends BasePlugin {
 
   async interact() {
     try {
-      const context = await Database.getRepository(Message).find({
-        where: {
-          channel: { name: this.bot.channel },
-          sender: { name: Not(this.bot.nick) }
-        },
-        order: { id: 'DESC' },
-        take: this.CONTEXT_SIZE,
-        relations: ['sender', 'channel']
+      // Our own posts stay out of this prompt: the channel being quiet means
+      // the humans stopped talking, and feeding our last shitpost back in just
+      // makes us write a variation on it.
+      const context = await this.transcript.recent(this.bot.channel, this.CONTEXT_SIZE, {
+        excluding: this.bot.nick
       });
 
-      context.reverse();
-
       debug(chalk.redBright(`Preparing interaction with context:`));
-      for (const message of context) {
-        debug(chalk.redBright(`  * ${message.sender.name}: ${message.data}`));
+      for (const line of context) {
+        debug(chalk.redBright(`  * ${line.sender}: ${line.text}`));
       }
 
       const prompt = [
@@ -68,7 +66,7 @@ export class ShitpostPlugin extends BasePlugin {
         ...this.bot.personality.template,
         '',
         '### IRC Logs',
-        ...context.map((message) => `${message.sender.name}: ${message.data}`),
+        ...context.map((line) => `${line.sender}: ${line.text}`),
         '',
         '### Instructions',
         `You are ${this.bot.nick}.`,
@@ -77,22 +75,7 @@ export class ShitpostPlugin extends BasePlugin {
         `Your message should be in character with your personality and could be a random thought, a joke, or a comment related to the last conversation topics.`
       ];
 
-      const start = Date.now();
-      const response = await this.bot.agent.query(prompt);
-      const end = Date.now();
-      debug(`Response generated in ${end - start}ms`);
-
-      if (!response.includes('\n')) {
-        debug(chalk.greenBright(response));
-      } else {
-        debug(chalk.redBright(response));
-      }
-
-      await this.bot.send(
-        'public',
-        this.bot.channel,
-        OutputMessage.cleanup(response, this.bot.nick)
-      );
+      await this.reply.publish('public', this.bot.channel, prompt);
     } catch (err) {
       error('Error during interaction:', err);
     }
