@@ -16,6 +16,13 @@ export class OutputMessage {
     // Drop the reasoning scratchpad if the model emitted one.
     response = removeThinkBlock(response);
 
+    // Collapse line breaks into a space before the non ASCII strip below gets
+    // to them. A newline is 0x0A, outside \x20-\x7E, so that strip used to
+    // delete it and weld the two lines together: "no shit" + "\n" + "dwarf is
+    // a standard" reached the channel as "no shitdwarf is a standard". Every
+    // multi line reply in a sample of forty was mangled this way.
+    response = response.replace(/[ \t]*\r?\n+[ \t]*/g, ' ');
+
     // Map the punctuation models like to emit onto its ASCII equivalent. Deleting
     // it outright glues words together: "goose—just" became "goosejust".
     response = response
