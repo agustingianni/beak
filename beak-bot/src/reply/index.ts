@@ -26,13 +26,16 @@ export class Reply {
 
   // Returns the text that was actually sent, after cleanup. Throws if the
   // model call fails, so callers can decide what to say about the failure.
+  // The character travels in `system`, separate from the prompt, so callers
+  // cannot go back to pasting it on the front of the user turn by accident.
   async publish(
     type: 'public' | 'private',
     recipient: string,
-    prompt: string[]
+    prompt: string[],
+    system: string
   ): Promise<string> {
     const start = Date.now();
-    const response = await this.agent.query(prompt);
+    const response = await this.agent.query(prompt, system);
     debug(`Response generated in ${Date.now() - start}ms`);
 
     // A multi line answer means the model ignored the "keep it short"

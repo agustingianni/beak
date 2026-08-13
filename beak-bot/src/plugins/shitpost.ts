@@ -62,9 +62,6 @@ export class ShitpostPlugin extends BasePlugin {
       }
 
       const prompt = [
-        '### Your Personality',
-        ...this.bot.personality.template,
-        '',
         '### IRC Logs',
         ...context.map((line) => `${line.sender}: ${line.text}`),
         '',
@@ -72,10 +69,12 @@ export class ShitpostPlugin extends BasePlugin {
         `You are ${this.bot.nick}.`,
         `The channel has been quiet for a while.`,
         `Craft a short, witty, or interesting message to get the conversation going again.`,
-        `Your message should be in character with your personality and could be a random thought, a joke, or a comment related to the last conversation topics.`
+        `Your message should be in character with your personality and could be a random thought, a joke, or a comment related to the last conversation topics.`,
+        'Reply with exactly one line of plain text. No line breaks, no quotes ' +
+          'around it, no markdown, and no nickname prefix.'
       ];
 
-      await this.reply.publish('public', this.bot.channel, prompt);
+      await this.reply.publish('public', this.bot.channel, prompt, this.bot.personality.system());
     } catch (err) {
       error('Error during interaction:', err);
     }

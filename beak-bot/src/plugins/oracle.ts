@@ -55,9 +55,6 @@ export class OraclePlugin extends BasePlugin {
           : context;
 
       const prompt = [
-        '### Your Personality',
-        ...this.bot.personality.template,
-        '',
         '### IRC Logs',
         // Our own logged replies stay in the context, because dropping them
         // makes the thread unreadable: half the turns here are reactions to
@@ -79,10 +76,16 @@ export class OraclePlugin extends BasePlugin {
         'Keep your response concise and aligned with the tone of the ongoing conversation and your personality.',
         'Try not to answer the mention with a question.',
         'The logs contain your own previous messages. Do not copy their style,',
-        'and in particular never open with laughter such as "haha" or "lol".'
+        'and in particular never open with laughter such as "haha" or "lol".',
+        // Without this line the model treats the log block as something to
+        // continue, and answers in transcript format: it prefixed replies with
+        // "yrp:" or pasted the whole "### IRC Logs" section back into the
+        // channel. Spelling out the output format drove that to zero.
+        'Reply with exactly one line of plain text. No line breaks, no quotes ' +
+          'around it, no markdown, and no nickname prefix.'
       ];
 
-      await this.reply.publish('public', this.bot.channel, prompt);
+      await this.reply.publish('public', this.bot.channel, prompt, this.bot.personality.system());
     } catch (err) {
       error('Error during interaction:', err);
     }

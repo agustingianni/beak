@@ -1,10 +1,11 @@
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGroq } from '@langchain/groq';
 import { LLMModel } from './index.js';
 
 export class GroqModel implements LLMModel {
   private model: ChatGroq;
 
-  constructor(apiKey: string, model: string, temperature = 0.9) {
+  constructor(apiKey: string, model: string, temperature = 0.8) {
     this.model = new ChatGroq({
       apiKey,
       model,
@@ -12,9 +13,13 @@ export class GroqModel implements LLMModel {
     });
   }
 
-  async invoke(prompt: string): Promise<string> {
+  async invoke(prompt: string, system?: string): Promise<string> {
     try {
-      const response = await this.model.invoke(prompt);
+      const messages = system
+        ? [new SystemMessage(system), new HumanMessage(prompt)]
+        : [new HumanMessage(prompt)];
+
+      const response = await this.model.invoke(messages);
       return response.text;
     } catch (error) {
       console.error('Error invoking the Groq model:', error);

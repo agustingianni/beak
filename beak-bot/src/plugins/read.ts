@@ -45,9 +45,6 @@ export class ReadPlugin extends BasePlugin {
       const snippet = article.textContent.slice(0, 1024 * 4);
 
       const prompt = [
-        '### Your Personality',
-        ...this.bot.personality.template,
-        '',
         '### Document Title',
         article.title,
         '',
@@ -57,10 +54,12 @@ export class ReadPlugin extends BasePlugin {
         '### Instructions',
         `You are ${this.bot.nick}.`,
         'Summarize or comment on the above document in a concise and relevant way.',
-        'Focus on interesting insights, not just a generic summary.'
+        'Focus on interesting insights, not just a generic summary.',
+        'Reply with exactly one line of plain text. No line breaks, no quotes ' +
+          'around it, no markdown, and no nickname prefix.'
       ];
 
-      await this.reply.publish('public', this.bot.channel, prompt);
+      await this.reply.publish('public', this.bot.channel, prompt, this.bot.personality.system());
     } catch (err) {
       error(`!read error for ${url}:`, err);
       await this.bot.send('private', message.sender, `Failed to process URL: ${err}`);
